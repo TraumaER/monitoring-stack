@@ -7,6 +7,8 @@ services:
     volumes:
       - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml
       - loki-data:/loki
+    labels:
+      app.subdomain: "loki"
     command: -config.file=/etc/loki/loki-config.yaml -config.expand-env=true
     env_file:
       - .env
@@ -22,6 +24,8 @@ services:
     volumes:
       - ./mimir/mimir-config.yaml:/etc/mimir/mimir-config.yaml
       - mimir-data:/data
+    labels:
+      app.subdomain: "mimir"
     command: -config.file=/etc/mimir/mimir-config.yaml -config.expand-env=true
     env_file:
       - .env
@@ -37,6 +41,8 @@ services:
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
       - grafana-data:/var/lib/grafana
+    labels:
+      app.subdomain: "grafana"
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
@@ -55,6 +61,8 @@ services:
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - TENANT_ID=${TENANT_ID:-default-tenant}
     command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     networks:
       - monitoring
