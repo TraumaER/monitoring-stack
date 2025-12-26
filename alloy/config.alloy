@@ -1,0 +1,99 @@
+// Logging configuration
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// Discover Docker containers for log collection
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Collect logs from Docker containers
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.process.add_labels.receiver]
+}
+
+// Process and add labels to logs
+loki.process "add_labels" {
+  forward_to = [loki.write.endpoint.receiver]
+
+  stage.docker {}
+
+  stage.labels {
+    values = {
+      container_name = "",
+      stream         = "",
+    }
+  }
+}
+
+// Send logs to Loki
+loki.write "endpoint" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// Scrape metrics from Docker containers
+discovery.docker "metrics" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Scrape cAdvisor metrics for container stats
+prometheus.scrape "cadvisor" {
+  targets = [{
+    __address__ = "host.docker.internal:8080",
+  }]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "30s"
+}
+
+// Scrape Loki metrics
+prometheus.scrape "loki" {
+  targets = [{
+    __address__ = "loki:3100",
+  }]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "30s"
+  metrics_path = "/metrics"
+}
+
+// Scrape Mimir metrics
+prometheus.scrape "mimir" {
+  targets = [{
+    __address__ = "mimir:9009",
+  }]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "30s"
+  metrics_path = "/metrics"
+}
+
+// Scrape Grafana metrics
+prometheus.scrape "grafana" {
+  targets = [{
+    __address__ = "grafana:3000",
+  }]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "30s"
+  metrics_path = "/metrics"
+}
+
+// Scrape Alloy's own metrics
+prometheus.scrape "alloy" {
+  targets = [{
+    __address__ = "localhost:12345",
+  }]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "30s"
+  metrics_path = "/metrics"
+}
+
+// Send metrics to Mimir
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://mimir:9009/api/v1/push"
+  }
+}

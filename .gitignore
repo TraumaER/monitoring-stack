@@ -1,0 +1,12 @@
+# Environment variables
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Data directories (if using local storage)
+data/

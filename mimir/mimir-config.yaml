@@ -1,0 +1,64 @@
+multitenancy_enabled: false
+
+server:
+  http_listen_port: 9009
+  log_level: info
+
+common:
+  storage:
+    backend: s3
+    s3:
+      endpoint: ${GARAGE_ENDPOINT}
+      region: garage
+      access_key_id: ${GARAGE_ACCESS_KEY_ID}
+      secret_access_key: ${GARAGE_SECRET_ACCESS_KEY}
+      insecure: false
+      bucket_lookup_type: path
+
+blocks_storage:
+  s3:
+    bucket_name: mimir-blocks
+  tsdb:
+    dir: /data/tsdb
+  bucket_store:
+    sync_dir: /data/tsdb-sync
+
+ruler_storage:
+  s3:
+    bucket_name: mimir-ruler
+
+alertmanager_storage:
+  s3:
+    bucket_name: mimir-alertmanager
+
+compactor:
+  data_dir: /data/compactor
+  compaction_interval: 30m
+  deletion_delay: 2h
+  sharding_ring:
+    kvstore:
+      store: memberlist
+
+distributor:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: memberlist
+
+ingester:
+  ring:
+    instance_addr: 127.0.0.1
+    replication_factor: 1
+    kvstore:
+      store: memberlist
+
+store_gateway:
+  sharding_ring:
+    replication_factor: 1
+
+limits:
+  ingestion_rate: 50000
+  ingestion_burst_size: 100000
+  max_global_series_per_user: 0
+  max_global_series_per_metric: 0
+  compactor_blocks_retention_period: 30d
