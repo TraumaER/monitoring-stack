@@ -1,138 +1,138 @@
 // Logging configuration
 logging {
-  level  = "info"
-  format = "logfmt"
+	level  = "info"
+	format = "logfmt"
 }
 
 // Discover Docker containers for log collection
 discovery.docker "containers" {
-  host = "unix:///var/run/docker.sock"
+	host = "unix:///var/run/docker.sock"
 }
 
 // Collect logs from Docker containers
 loki.source.docker "containers" {
-  host       = "unix:///var/run/docker.sock"
-  targets    = discovery.docker.containers.targets
-  forward_to = [loki.relabel.add_service_name.receiver]
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.docker.containers.targets
+	forward_to = [loki.relabel.add_service_name.receiver]
 }
 
 // Add service name label with fallback logic (matches metrics labeling)
 loki.relabel "add_service_name" {
-  forward_to = [loki.process.add_labels.receiver]
+	forward_to = [loki.process.add_labels.receiver]
 
-  // Use docker-compose service name as service_name (if it exists)
-  rule {
-    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
-    regex         = "(.+)"
-    target_label  = "service_name"
-  }
+	// Use docker-compose service name as service_name (if it exists)
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		regex         = "(.+)"
+		target_label  = "service_name"
+	}
 
-  // Fallback to container name ONLY if compose service label is empty
-  rule {
-    source_labels = ["__meta_docker_container_label_com_docker_compose_service", "__meta_docker_container_name"]
-    regex         = ";/(.*)"
-    replacement   = "$1"
-    target_label  = "service_name"
-  }
+	// Fallback to container name ONLY if compose service label is empty
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service", "__meta_docker_container_name"]
+		regex         = ";/(.*)"
+		replacement   = "$1"
+		target_label  = "service_name"
+	}
 }
 
 // Process and add additional labels to logs
 loki.process "add_labels" {
-  forward_to = [loki.write.endpoint.receiver]
+	forward_to = [loki.write.endpoint.receiver]
 
-  stage.docker {}
+	stage.docker { }
 
-  stage.labels {
-    values = {
-      container_name = "container_name",
-      stream         = "stream",
-    }
-  }
+	stage.labels {
+		values = {
+			container_name = "container_name",
+			stream         = "stream",
+		}
+	}
 }
 
 // Send logs to Loki
 loki.write "endpoint" {
-  endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
-    tenant_id = sys.env("TENANT_ID")
-  }
+	endpoint {
+		url       = "http://loki:3100/loki/api/v1/push"
+		tenant_id = sys.env("TENANT_ID")
+	}
 }
 
 // Discover Docker containers for metrics collection
 discovery.docker "metrics" {
-  host = "unix:///var/run/docker.sock"
+	host = "unix:///var/run/docker.sock"
 }
 
 // Relabel discovered containers to set job name from docker-compose service
 discovery.relabel "metrics" {
-  targets = discovery.docker.metrics.targets
+	targets = discovery.docker.metrics.targets
 
-  // Use docker-compose service name as the job label (if it exists)
-  rule {
-    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
-    regex         = "(.+)"
-    target_label  = "job"
-  }
+	// Use docker-compose service name as the job label (if it exists)
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		regex         = "(.+)"
+		target_label  = "job"
+	}
 
-  // Fallback to container name ONLY if compose service label is empty
-  rule {
-    source_labels = ["__meta_docker_container_label_com_docker_compose_service", "__meta_docker_container_name"]
-    regex         = ";/(.*)"
-    replacement   = "$1"
-    target_label  = "job"
-  }
+	// Fallback to container name ONLY if compose service label is empty
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service", "__meta_docker_container_name"]
+		regex         = ";/(.*)"
+		replacement   = "$1"
+		target_label  = "job"
+	}
 
-  // Set the instance label to the container name
-  rule {
-    source_labels = ["__meta_docker_container_name"]
-    regex         = "/(.*)"
-    replacement   = "$1"
-    target_label  = "instance"
-  }
+	// Set the instance label to the container name
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		replacement   = "$1"
+		target_label  = "instance"
+	}
 
-  // Add container ID for debugging and correlation
-  rule {
-    source_labels = ["__meta_docker_container_id"]
-    regex         = "(.+)"
-    target_label  = "container_id"
-  }
+	// Add container ID for debugging and correlation
+	rule {
+		source_labels = ["__meta_docker_container_id"]
+		regex         = "(.+)"
+		target_label  = "container_id"
+	}
 
-  // Add the Docker image name and tag
-  rule {
-    source_labels = ["__meta_docker_container_image"]
-    regex         = "(.+)"
-    target_label  = "image"
-  }
+	// Add the Docker image name and tag
+	rule {
+		source_labels = ["__meta_docker_container_image"]
+		regex         = "(.+)"
+		target_label  = "image"
+	}
 
-  // Add the Docker network name
-  rule {
-    source_labels = ["__meta_docker_network_name"]
-    regex         = "(.+)"
-    target_label  = "network"
-  }
+	// Add the Docker network name
+	rule {
+		source_labels = ["__meta_docker_network_name"]
+		regex         = "(.+)"
+		target_label  = "network"
+	}
 
-  // Add docker-compose project name
-  rule {
-    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
-    regex         = "(.+)"
-    target_label  = "compose_project"
-  }
+	// Add docker-compose project name
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+		regex         = "(.+)"
+		target_label  = "compose_project"
+	}
 }
 
 // Scrape metrics from discovered containers
 prometheus.scrape "services" {
-  targets         = discovery.relabel.metrics.output
-  forward_to      = [prometheus.remote_write.mimir.receiver]
-  scrape_interval = "30s"
-  metrics_path    = "/metrics"
+	targets         = discovery.relabel.metrics.output
+	forward_to      = [prometheus.remote_write.mimir.receiver]
+	scrape_interval = "30s"
+	metrics_path    = "/metrics"
 }
 
 // Send metrics to Mimir
 prometheus.remote_write "mimir" {
-  endpoint {
-    url = "http://mimir:9009/api/v1/push"
-    headers = {
-        "X-Scope-OrgID" = sys.env("TENANT_ID")
-    }
-  }
+	endpoint {
+		url     = "http://mimir:9009/api/v1/push"
+		headers = {
+			"X-Scope-OrgID" = sys.env("TENANT_ID"),
+		}
+	}
 }
