@@ -9,16 +9,9 @@ discovery.docker "containers" {
 	host = "unix:///var/run/docker.sock"
 }
 
-// Collect logs from Docker containers
-loki.source.docker "containers" {
-	host       = "unix:///var/run/docker.sock"
-	targets    = discovery.docker.containers.targets
-	forward_to = [loki.relabel.add_service_name.receiver]
-}
-
-// Add service name label with fallback logic (matches metrics labeling)
-loki.relabel "add_service_name" {
-	forward_to = [loki.process.add_labels.receiver]
+// Relabel discovered containers BEFORE log collection (where __meta_* labels are available)
+discovery.relabel "containers" {
+	targets = discovery.docker.containers.targets
 
 	// Use docker-compose service name as service_name (if it exists)
 	rule {
@@ -34,6 +27,13 @@ loki.relabel "add_service_name" {
 		replacement   = "$1"
 		target_label  = "service_name"
 	}
+}
+
+// Collect logs from Docker containers with relabeled targets
+loki.source.docker "containers" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.containers.output
+	forward_to = [loki.process.add_labels.receiver]
 }
 
 // Process and add additional labels to logs
